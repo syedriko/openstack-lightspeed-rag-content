@@ -135,6 +135,7 @@ commands =
   sphinx-build --keep-going -j auto -b text doc/source doc/build/text
 deps =
   -c{env:TOX_CONSTRAINTS_FILE:https://releases.openstack.org/constraints/upper/$_os_version}
+  setuptools<67
   -r{toxinidir}/doc/requirements.txt
 "
 
@@ -147,6 +148,7 @@ commands =
   sphinx-build --keep-going -j auto -b html -d api-ref/build/doctrees api-ref/source api-ref/build/html
 deps =
   -c{env:TOX_CONSTRAINTS_FILE:https://releases.openstack.org/constraints/upper/$_os_version}
+  setuptools<67
   -r{toxinidir}/doc/requirements.txt
   os-api-ref
 "
@@ -186,6 +188,9 @@ deps =
         sed -i "/'ext\.support_matrix',/d" "doc/source/conf.py"
     elif [ "$project" == "ironic" ]; then
         sed -i "/'sphinxcontrib\.apidoc',/d" "doc/source/conf.py"
+    elif [ "$project" == "cinder" ]; then
+        # Avoid loading os_brick (windows_remotefs) during config sample generation; extension also needs pkg_resources
+        sed -i "/oslo_config\.sphinxconfiggen/d" "doc/source/conf.py"
     elif [ "$project" == "heat" ]; then
         rm -rf doc/source/template_guide/
     elif [[ "$project" == "trove" || "$project" == "zaqar" ]]; then
@@ -198,6 +203,19 @@ deps =
     else
         echo "The text-docs target does not exist for $project. Appending it..."
         echo "$tox_text_docs_target" >> tox.ini
+        # Force setuptools<67 into doc env when using appended block (pkg_resources needed by oslo_config.sphinxconfiggen)
+        if [ -f "doc/requirements.txt" ]; then
+            if grep -q '^setuptools' doc/requirements.txt; then
+                sed -i 's/^setuptools.*/setuptools<67/' doc/requirements.txt
+            else
+                echo "setuptools<67" >> doc/requirements.txt
+            fi
+        fi
+    fi
+
+    # Ensure setuptools<67 is in doc requirements (oslo_config.sphinxconfiggen needs pkg_resources; setuptools>=67 deprecated it)
+    if [ -f "doc/requirements.txt" ] && ! grep -q '^setuptools' doc/requirements.txt; then
+        echo "setuptools<67" >> doc/requirements.txt
     fi
 
     # Build regular documentation (skip for neutron-lib)

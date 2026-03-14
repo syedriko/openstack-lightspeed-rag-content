@@ -23,6 +23,7 @@ RHOSO_IGNORE_LIST              ?= ""
 
 CONTAINERFILE                  ?= "./Containerfile"
 HERMETIC                       ?= false
+BUILDER_IMAGE                  ?= quay.io/lightspeed-core/rag-content-${FLAVOR}:latest
 
 # Define behavior based on the flavor
 ifeq ($(FLAVOR),cpu)
@@ -31,7 +32,7 @@ BUILD_GPU_ARGS :=
 else ifeq ($(FLAVOR),gpu)
 TORCH_GROUP := gpu
 # We cannot pass `--gpus all` instead because `podman build` doesn't support it
-BUILD_GPU_ARGS ?= --device nvidia.com/gpu=all
+BUILD_GPU_ARGS ?= --device nvidia.com/gpu=all --security-opt=label=disable
 else
 $(error Unsupported FLAVOR $(FLAVOR), must be 'cpu' or 'gpu')
 endif
@@ -56,6 +57,7 @@ build-image-os: ## Build a openstack rag-content container image
 	--build-arg RHOSO_IGNORE_LIST='$(RHOSO_IGNORE_LIST)' \
 	--build-arg BUILD_OCP_DOCS=$(BUILD_OCP_DOCS) \
 	--build-arg HERMETIC=$(HERMETIC) \
+	--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 	$(BUILD_GPU_ARGS) .
 
 get-embeddings-model: ## Download embeddings model from the openstack-lightspeed/rag-content container image

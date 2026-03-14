@@ -23,13 +23,13 @@ COPY ./scripts ./scripts
 # python-devel and pcre-devel are needed for python-openstackclient
 RUN if [ "$BUILD_UPSTREAM_DOCS" = "true" ]; then \
         dnf install -y graphviz python-devel pcre-devel pip && \
-        pip install tox html2text && \
+        pip install 'setuptools<67' tox html2text && \
         ./scripts/get_openstack_plaintext_docs.sh; \
     fi
 
 # -- Stage 1b: Generate downstream plaintext formatted documentation ----------
 # Use the right CPU/GPU image or it will break the embedding stage as we replace the venv directory
-FROM quay.io/lightspeed-core/rag-content-${FLAVOR}:latest as docs-base-downstream
+FROM ${BUILDER_IMAGE} as docs-base-downstream
 
 ARG FLAVOR=cpu
 ARG NUM_WORKERS=1
@@ -66,7 +66,7 @@ RUN if [ ! -z "$RHOSO_DOCS_GIT_URL" ]; then \
     fi
 
 # -- Stage 2: Compute embeddings for the doc chunks ---------------------------
-FROM quay.io/lightspeed-core/rag-content-${FLAVOR}:latest as lightspeed-core-rag-builder
+FROM ${BUILDER_IMAGE} as lightspeed-core-rag-builder
 COPY --from=docs-base-upstream /rag-content /rag-content
 COPY --from=docs-base-downstream /rag-content /rag-content
 
